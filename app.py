@@ -25,7 +25,7 @@ icms_debito_perc = st.number_input("Débito ICMS (%)", value=0.0) / 100
 despesas_dedutiveis = st.number_input("Despesas Dedutíveis IRPJ", value=0.0, step=1000.0)
 despesas_gerais = st.number_input("Despesas Gerais", value=0.0, step=1000.0)
 
-custos_variaveis_perc = st.number_input("Custos Variáveis (%)", value=0.0) / 100
+custos_variaveis = st.number_input("Custos Variáveis", value=0.0, step=1000.0)
 
 # =============================
 # Botão de cálculo
@@ -56,7 +56,7 @@ if st.button("Calcular"):
     # Custos Variáveis
     # =============================
 
-    custo_variavel = receita * custos_variaveis_perc
+    custo_variavel = custos_variaveis
 
     # =============================
     # Base IRPJ
@@ -130,4 +130,3 @@ if st.button("Calcular"):
 
     st.write("Lucro Final:", formatar_moeda(lucro))
     st.write("Margem Final:", formatar_percentual(margem))
-
