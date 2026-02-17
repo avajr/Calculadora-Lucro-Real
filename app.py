@@ -108,25 +108,25 @@ if st.button("Calcular"):
     st.subheader("Resultado")
 
     st.write("Receita Total:", formatar_moeda(receita))
-    st.write("CMV:", "-" + formatar_moeda(cmv))
+    st.write("CMV:", + formatar_moeda(cmv))
 
     st.write("ICMS Crédito:", formatar_moeda(icms_credito))
-    st.write("ICMS Débito:", "-" + formatar_moeda(icms_debito))
-    st.write("ICMS a Pagar:", "-" + formatar_moeda(icms_pagar))
+    st.write("ICMS Débito:", + formatar_moeda(icms_debito))
+    st.write("ICMS a Pagar:", + formatar_moeda(icms_pagar))
 
     st.write("Alíquota PIS/COFINS Crédito:", formatar_percentual(pis_cofins_credito_perc))
     st.write("Alíquota PIS/COFINS Débito:", formatar_percentual(pis_cofins_debito_perc))
 
     st.write("PIS/COFINS Crédito:", formatar_moeda(pis_cofins_credito))
-    st.write("PIS/COFINS Débito:", "-" + formatar_moeda(pis_cofins_debito))
-    st.write("PIS/COFINS a Pagar:", "-" + formatar_moeda(pis_cofins_pagar))
+    st.write("PIS/COFINS Débito:", + formatar_moeda(pis_cofins_debito))
+    st.write("PIS/COFINS a Pagar:", + formatar_moeda(pis_cofins_pagar))
 
     st.write("Base IRPJ:", formatar_moeda(base_irpj))
-    st.write("IRPJ a Pagar:", "-" + formatar_moeda(irpj))
-    st.write("CSLL a Pagar:", "-" + formatar_moeda(csll))
+    st.write("IRPJ a Pagar:", + formatar_moeda(irpj))
+    st.write("CSLL a Pagar:", + formatar_moeda(csll))
 
-    st.write("Despesas Gerais:", "-" + formatar_moeda(despesas_gerais))
-    st.write("Custo Variável:", "-" + formatar_moeda(custo_variavel))
+    st.write("Despesas Gerais:", + formatar_moeda(despesas_gerais))
+    st.write("Custo Variável:", + formatar_moeda(custo_variavel))
 
     st.write("Lucro Final:", formatar_moeda(lucro))
     st.write("Margem Final:", formatar_percentual(margem))
