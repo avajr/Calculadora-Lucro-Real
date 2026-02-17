@@ -108,7 +108,7 @@ if st.button("Calcular"):
     st.subheader("Resultado")
 
     st.write("Receita Total:", formatar_moeda(receita))
-    st.write("CMV:", + formatar_moeda(cmv))
+    st.write("CMV:", formatar_moeda(cmv))
 
     st.write("ICMS Crédito:", formatar_moeda(icms_credito))
     st.write("ICMS Débito:", formatar_moeda(icms_debito))
@@ -130,3 +130,4 @@ if st.button("Calcular"):
 
     st.write("Lucro Final:", formatar_moeda(lucro))
     st.write("Margem Final:", formatar_percentual(margem))
+
