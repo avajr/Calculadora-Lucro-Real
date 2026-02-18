@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from io import BytesIO
-from xhtml2pdf import pisa
 
 st.set_page_config(page_title="Simulador de Lucro Real/Presumido", layout="wide")
 st.title("💰 Simulador de Lucro Real / Presumido")
@@ -108,16 +106,6 @@ def exibir_card(resultados, titulo, cor="#D0E1F9"):
         </div>
     """
     st.markdown(html, unsafe_allow_html=True)
-    return html  # retorna o html para exportação
-
-# =============================
-# Função para gerar PDF
-# =============================
-def gerar_pdf(html_content):
-    pdf = BytesIO()
-    pisa.CreatePDF(html_content, dest=pdf)
-    pdf.seek(0)
-    return pdf
 
 # =============================
 # Cálculo e exibição
@@ -125,8 +113,6 @@ def gerar_pdf(html_content):
 if st.button("Calcular"):
 
     st.markdown(f"<h2 style='color:#1f77b4;'>💵 Receita Total: {formatar_moeda(receita)}</h2>", unsafe_allow_html=True)
-    
-    htmls_para_pdf = ""  # concatena todos os cards e gráficos
     
     if comparador:
         resultados_real = calcular_lucro(receita, cmv, icms_credito_perc, icms_debito_perc,
@@ -140,11 +126,9 @@ if st.button("Calcular"):
         col_real, col_pres = st.columns(2)
         
         with col_real:
-            html_real = exibir_card(resultados_real, "💎 Lucro Real", "#1F4E79")
+            exibir_card(resultados_real, "💎 Lucro Real", "#1F4E79")
         with col_pres:
-            html_pres = exibir_card(resultados_presumido, "💎 Lucro Presumido", "#85C1E9")
-        
-        htmls_para_pdf += html_real + "<br>" + html_pres
+            exibir_card(resultados_presumido, "💎 Lucro Presumido", "#85C1E9")
         
         # Gráfico comparativo de tributos
         tributos = ["🧾 ICMS a Pagar", "📈 PIS/COFINS a Pagar", "🏦 IRPJ a Pagar", "🏛️ CSLL a Pagar"]
@@ -172,7 +156,7 @@ if st.button("Calcular"):
                                     despesas_dedutiveis, despesas_gerais, custos_variaveis,
                                     regime)
         st.subheader(f"📈 Resultado - {regime}")
-        htmls_para_pdf += exibir_card(resultados, f"💎 {regime}", "#1F4E79" if regime=="Lucro Real" else "#85C1E9")
+        exibir_card(resultados, f"💎 {regime}", "#1F4E79" if regime=="Lucro Real" else "#85C1E9")
         
         # Gráfico para regime único
         tributos = ["🧾 ICMS a Pagar", "📈 PIS/COFINS a Pagar", "🏦 IRPJ a Pagar", "🏛️ CSLL a Pagar"]
@@ -185,9 +169,3 @@ if st.button("Calcular"):
         ])
         fig.update_layout(title=f"📊 Tributos - {regime}", yaxis_title="Valor (R$)")
         st.plotly_chart(fig, use_container_width=True)
-    
-    # =============================
-    # Botão para exportar PDF
-    # =============================
-    if st.download_button("📄 Exportar Resultado em PDF", data=gerar_pdf(htmls_para_pdf), file_name="resultado.pdf", mime="application/pdf"):
-        st.success("✅ PDF gerado com sucesso!")
