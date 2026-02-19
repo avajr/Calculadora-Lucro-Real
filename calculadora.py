@@ -30,7 +30,7 @@ def formatar_numero(valor):
 # TÍTULO
 # ============================
 
-st.title("📊 Simulador Estratégico - Lucro Real")
+st.title("📊 Calculador Regime Tributário")
 
 st.subheader("Entradas")
 
@@ -209,3 +209,4 @@ if st.button("Calcular"):
         file_name="simulacao_lucro_real.pdf",
         mime="application/pdf"
     )
+
