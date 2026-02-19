@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Simulador de Lucro Real/Presumido", layout="wide")
+st.set_page_config(page_title="Simulador Regime Tributário", layout="wide")
 st.title("💰 Simulador Regime Tributário")
 
 # =============================
@@ -169,4 +169,5 @@ if st.button("Calcular"):
         ])
         fig.update_layout(title=f"📊 Tributos - {regime}", yaxis_title="Valor (R$)")
         st.plotly_chart(fig, use_container_width=True)
+
 
