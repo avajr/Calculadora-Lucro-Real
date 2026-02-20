@@ -73,7 +73,7 @@ st.subheader("Classificação da Operação dos XML")
 
 tipo_manual = st.radio(
     "Os XML importados serão considerados como:",
-    ["Automático (usar CFOP do XML)", "Entrada", "Saída"],
+    ["Automático (usar CFOP do XML)", "Entrada"],
     horizontal=True
 )
 
@@ -85,7 +85,7 @@ uploaded_files = st.file_uploader(
 
 def converter_cfop(cfop_original, tipo_desejado):
     """
-    Converte CFOP de entrada para saída ou vice-versa
+    Converte CFOP de saída (5,6,7) para entrada (1,2,3)
     apenas trocando o primeiro dígito.
     """
     if not cfop_original:
@@ -94,20 +94,15 @@ def converter_cfop(cfop_original, tipo_desejado):
     cfop_original = str(cfop_original).strip()
 
     mapa_entrada = {"5": "1", "6": "2", "7": "3"}
-    mapa_saida = {"1": "5", "2": "6", "3": "7"}
 
     primeiro = cfop_original[0]
 
     if tipo_desejado == "Entrada" and primeiro in mapa_entrada:
         return mapa_entrada[primeiro] + cfop_original[1:]
 
-    if tipo_desejado == "Saída" and primeiro in mapa_saida:
-        return mapa_saida[primeiro] + cfop_original[1:]
-
     return cfop_original
 
 df = st.session_state.df_base
-
 
 if uploaded_files:
 
@@ -128,6 +123,13 @@ if uploaded_files:
                 )
 
                 cfop_original = str(resultado["cfop"]).strip()
+
+                # Aplicar conversão conforme seleção do usuário
+                if tipo_manual == "Entrada":
+                    cfop_final = converter_cfop(cfop_original, "Entrada")
+                else:
+                    # Automático → mantém CFOP original
+                    cfop_final = cfop_original
 
                 # ================================
                 # 🔄 DEFINIÇÃO DO TIPO OPERAÇÃO
@@ -150,6 +152,10 @@ if uploaded_files:
 
                     cfop_final = cfop_original
 
+                # ================================
+                # 🔎 CLASSIFICAÇÃO DA NATUREZA
+                # ================================
+
                 novos.append({
                     "tipo_operacao": tipo_operacao,
                     "chave": resultado["chave"],
@@ -160,6 +166,8 @@ if uploaded_files:
                     "cfop": cfop_final,
                     "cnpj": resultado["cnpj"],
                     "razao_social": resultado["razao_social"],
+                    "cnpj_destinatario": resultado["cnpj_destinatario"],
+                    "razao_destinatario": resultado["razao_destinatario"],
                     "defasagem": defasagem,
                     **resultado["impostos"]
                 })
@@ -192,78 +200,117 @@ df["defasagem"] = pd.to_numeric(df["defasagem"], errors="coerce").fillna(0)
 st.success(f"{df['chave'].nunique()} notas carregadas")
 
 # =====================================================
-# 🎛 FILTRO GLOBAL DE CFOP (AFETA TODOS OS MÓDULOS)
-# =====================================================
-
-st.divider()
-st.subheader("🎛 Filtro Global de CFOP")
-
-lista_cfop = sorted(df["cfop"].dropna().unique())
-
-cfop_selecionados = st.multiselect(
-    "Selecione os CFOP que devem ser considerados nos cálculos:",
-    options=lista_cfop,
-    default=lista_cfop
-)
-
-# Se nada for selecionado, dataframe fica vazio
-if cfop_selecionados:
-    df_filtrado = df[df["cfop"].isin(cfop_selecionados)].copy()
-else:
-    df_filtrado = df.iloc[0:0].copy()
-
-# 🔄 A PARTIR DAQUI TODOS OS CÁLCULOS USAM O DATAFRAME FILTRADO
-df = df_filtrado.copy()
-
-st.info(f"{df_filtrado['chave'].nunique()} notas após filtro de CFOP")
-
-
-# =====================================================
 # 📈 DASHBOARD EXECUTIVO
 # =====================================================
 
 st.divider()
 st.subheader("📈 Dashboard Executivo")
 
-# — Filtrando categorias relevantes
-df_vendas = df[df["tipo_operacao"]=="Saída"]
-df_compras = df[df["tipo_operacao"]=="Entrada"]
+# 🔧 Garantir CFOP como string
+df["cfop"] = df["cfop"].astype(str).str.strip()
 
-# ➤ Definição de CFOP de devolução (venda)
-cfop_devolucao_venda = [
-    "1201","1202","1203","1204","1208","1209",
-    "1410","1411","1503","1504","1505","1506"
-]
-
-# ➤ Definição de CFOP de devolução (compra — saída para fornecedor)
+# ➤ Listas CFOP de compra
 cfop_devolucao_compra = [
-    "5202","5411"
+    "5201","5202","5203","5204","5205","5206","5207","5208","5209",
+    "5410","5411",
+    "5503","5504","5505","5506",
+    "6201","6202","6203","6204","6205","6206","6207","6208","6209",
+    "6410","6411","6413",
+    "6503","6504","6505","6506",
+    "6556"
 ]
 
-# — Total de vendas
-total_vendas = df_vendas["valor"].sum()
+# ➤ Listas CFOP de venda
+cfop_devolucao_venda = [
+    "1201","1202","1203","1204","1205","1206","1207","1208","1209",
+    "1410","1411",
+    "1503","1504","1505","1506",
+    "2201","2202","2203","2204","2205","2206","2207","2208","2209",
+    "2410","2411",
+    "2503","2504","2505","2506","2556"
+]
 
-# — Total de compras
-total_compras = df_compras["valor"].sum()
+cfop_outros = [
+    # Bonificação / Doação / Brindes
+    "5910","6910",
+    "5911","6911",
+    "5912","6912",
 
-# — Devoluções de venda (valores que retornam)
-total_dev_venda = df_vendas[df_vendas["cfop"].isin(cfop_devolucao_venda)]["valor"].sum()
+    # Remessas (não geram receita)
+    "5901","6901",
+    "5902","6902",
+    "5903","6903",
+    "5904","6904",
+    "5905","6905",
+    "5906","6906",
+    "5907","6907",
+    "5908","6908",
+    "5909","6909",
 
-# — Devoluções de compra (valores que retornam)
-total_dev_compra = df_compras[df_compras["cfop"].isin(cfop_devolucao_compra)]["valor"].sum()
+    # Transferências
+    "5152","6152",
+    "5153","6153",
 
-# — Ajustando líquidas
-faturamento_liquido = total_vendas - total_dev_venda
-compras_liquidas = total_compras - total_dev_compra
+    # Outras saídas sem receita
+    "5949","6949"
+]
 
-# — Resultado bruto ajustado
-resultado_bruto_ajustado = faturamento_liquido - compras_liquidas
+# =====================================================
+# 🔹 CLASSIFICAÇÃO
+# =====================================================
 
-# — Frete FOB (Entradas)
-frete_fob = df_compras["frete"].sum()
+# Vendas normais (Saída que NÃO é devolução)
+df_vendas_normais = df[
+    (df["tipo_operacao"] == "Saída") &
+    (~df["cfop"].isin(cfop_devolucao_venda)) &
+    (~df["cfop"].isin(cfop_devolucao_compra)) &
+    (~df["cfop"].isin(cfop_outros))
+]
 
-# — Frete CIF (Saídas)
-frete_cif = df_vendas["frete"].sum()
+# Compras normais (Entrada que NÃO é devolução)
+df_compras_normais = df[
+    (df["tipo_operacao"] == "Entrada") &
+    (~df["cfop"].isin(cfop_devolucao_venda)) &
+    (~df["cfop"].isin(cfop_devolucao_compra)) &
+    (~df["cfop"].isin(cfop_outros))
+]
+
+# Devolução de venda (Entrada)
+df_dev_venda = df[
+    (df["tipo_operacao"] == "Entrada") &
+    (df["cfop"].isin(cfop_devolucao_venda))
+]
+
+# Devolução de compra (Saída)
+df_dev_compra = df[
+    (df["tipo_operacao"] == "Saída") &
+    (df["cfop"].isin(cfop_devolucao_compra))
+]
+
+# =====================================================
+# 🔹 CÁLCULOS COM AJUSTE NEGATIVO NO BRUTO
+# =====================================================
+
+# Vendas Brutas = Saídas normais - devolução de venda
+total_vendas = df_vendas_normais["valor"].sum() - df_dev_venda["valor"].sum()
+
+# Compras Brutas = Entradas normais - devolução de compra
+total_compras = df_compras_normais["valor"].sum() - df_dev_compra["valor"].sum()
+
+# Devoluções (sempre positivas)
+total_dev_venda = df_dev_venda["valor"].sum()
+total_dev_compra = df_dev_compra["valor"].sum()
+
+# Resultado líquido simplificado
+resultado_liquido = total_vendas - total_compras
+
+# Fretes
+frete_fob = df_compras_normais["frete"].sum()
+frete_cif = df_vendas_normais["frete"].sum()
+
+# =====================================================
+# 🔹 EXIBIÇÃO
+# =====================================================
 
 col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 
@@ -273,7 +320,7 @@ col3.metric("Devoluções Venda", f"R$ {total_dev_venda:,.2f}")
 col4.metric("Devoluções Compra", f"R$ {total_dev_compra:,.2f}")
 col5.metric("Frete CIF (Saídas)", f"R$ {frete_cif:,.2f}")
 col6.metric("Frete FOB (Entradas)", f"R$ {frete_fob:,.2f}")
-col7.metric("Resultado Líquido", f"R$ {resultado_bruto_ajustado:,.2f}")
+col7.metric("Resultado Líquido", f"R$ {resultado_liquido:,.2f}")
 
 # =====================================================
 # 🧠 ABAS
@@ -444,6 +491,11 @@ with aba3:
     # =====================================================
 
     st.divider()
+    st.subheader("📅 Configuração da Projeção")
+
+    mes_base = st.date_input("Mês Base da Projeção")
+
+    st.divider()
     st.subheader("🔮 Simulador de Receita Futura")
 
     df_receita = df[df["tipo_operacao"]=="Saída"]
@@ -465,8 +517,6 @@ with aba3:
             value=0.0,
             step=10000.0
         )
-
-        mes_base = st.date_input("Mês Base da Venda")
 
         if valor_projetar > 0:
 
@@ -491,6 +541,58 @@ with aba3:
             fig_proj = px.bar(df_proj, x="mes", y="valor")
             st.plotly_chart(fig_proj, use_container_width=True)
 
+    # =====================================================
+    # 🔮 SIMULADOR DE PAGAMENTOS FUTUROS (FORNECEDORES)
+    # =====================================================
+
+    st.divider()
+    st.subheader("🔮 Simulador de Pagamentos Futuros (Fornecedores)")
+
+    df_pagamentos = df[df["tipo_operacao"]=="Entrada"]
+
+    dist_pag = (
+    df_pagamentos.groupby("defasagem")["valor"]
+    .sum()
+    .reset_index()
+    )
+
+    total_pag = dist_pag["valor"].sum()
+
+    if total_pag > 0:
+
+        dist_pag["percentual"] = dist_pag["valor"] / total_pag
+
+        valor_pagar = st.number_input(
+        "Valor de Compras para Projetar",
+        value=0.0,
+        step=10000.0
+    )
+
+    # usa o MESMO mes_base do simulador de receita
+    # pois já foi definido acima
+    if valor_pagar > 0:
+
+        proj_pag = []
+
+        for _, row in dist_pag.iterrows():
+
+            nova_data = pd.to_datetime(mes_base) + pd.DateOffset(
+                months=int(row["defasagem"])
+            )
+
+            proj_pag.append({
+                "mes": str(nova_data.to_period("M")),
+                "valor": valor_pagar * row["percentual"]
+            })
+
+        df_proj_pag = pd.DataFrame(proj_pag)
+        df_proj_pag = df_proj_pag.groupby("mes")["valor"].sum().reset_index()
+
+        st.dataframe(formatar_moeda(df_proj_pag), use_container_width=True)
+
+        fig_proj_pag = px.bar(df_proj_pag, x="mes", y="valor")
+        st.plotly_chart(fig_proj_pag, use_container_width=True)
+
 # =====================================================
 # 📑 DRE & MARGENS
 # =====================================================
@@ -505,60 +607,79 @@ with aba4:
     # 🔹 DEFINIÇÃO DE CFOP DE DEVOLUÇÃO
     # ==========================================
 
+    # ➤ Listas CFOP de venda
     cfop_devolucao_venda = [
-        "1201","1202","1203","1204","1208","1209",
-        "1410","1411","1503","1504","1505","1506"
+    "1201","1202","1203","1204","1205","1206","1207","1208","1209",
+    "1410","1411",
+    "1503","1504","1505","1506",
+    "2201","2202","2203","2204","2205","2206","2207","2208","2209",
+    "2410","2411",
+    "2503","2504","2505","2506"
     ]
 
+    # ➤ Listas CFOP de compra
     cfop_devolucao_compra = [
-        "5202","5411"
+    "5201","5202","5203","5204","5205","5206","5207","5208","5209",
+    "5410","5411",
+    "5503","5504","5505","5506",
+    "6201","6202","6203","6204","6205","6206","6207","6208","6209",
+    "6410","6411","6413",
+    "6503","6504","6505","6506",
+    "6556"
     ]
 
     # ==========================================
-    # 🔹 RECEITA BRUTA
+    # 🔹 CLASSIFICAÇÃO (igual ao Dashboard Executivo)
     # ==========================================
 
-    receita_bruta = (
-        df[df["tipo_operacao"]=="Saída"]
-        .groupby("mes")["valor"]
-        .sum()
-    )
+    # CFOP que não representam venda real
+    cfop_outros = [
+        "5910","6910","5911","6911","5912","6912",
+        "5901","6901","5902","6902","5903","6903","5904","6904",
+        "5905","6905","5906","6906","5907","6907","5908","6908","5909","6909",
+        "5152","6152","5153","6153",
+        "5949","6949"
+    ]
+
+    # Vendas normais (Saída que NÃO é devolução e NÃO é CFOP “sujeira”)
+    df_vendas_normais = df[
+        (df["tipo_operacao"] == "Saída") &
+        (~df["cfop"].isin(cfop_devolucao_venda)) &
+        (~df["cfop"].isin(cfop_devolucao_compra)) &
+        (~df["cfop"].isin(cfop_outros))
+    ]
+
+    # Compras normais (Entrada que NÃO é devolução e NÃO é CFOP “sujeira”)
+    df_compras_normais = df[
+        (df["tipo_operacao"] == "Entrada") &
+        (~df["cfop"].isin(cfop_devolucao_venda)) &
+        (~df["cfop"].isin(cfop_devolucao_compra)) &
+        (~df["cfop"].isin(cfop_outros))
+    ]
+
+    # Devolução de venda (Entrada)
+    df_dev_venda = df[
+        (df["tipo_operacao"] == "Entrada") &
+        (df["cfop"].isin(cfop_devolucao_venda)) &
+        (~df["cfop"].isin(cfop_outros))
+    ]
+
+    # Devolução de compra (Saída)
+    df_dev_compra = df[
+        (df["tipo_operacao"] == "Saída") &
+        (df["cfop"].isin(cfop_devolucao_compra)) &
+        (~df["cfop"].isin(cfop_outros))
+    ]
 
     # ==========================================
-    # 🔹 DEVOLUÇÃO DE VENDA
+    # 🔹 CÁLCULOS MENSAIS (igual ao Dashboard)
     # ==========================================
 
-    devolucao_venda = (
-        df[
-            (df["tipo_operacao"]=="Saída") &
-            (df["cfop"].isin(cfop_devolucao_venda))
-        ]
-        .groupby("mes")["valor"]
-        .sum()
-    )
+    receita_bruta = df_vendas_normais.groupby("mes")["valor"].sum()
+    compras_bruta = df_compras_normais.groupby("mes")["valor"].sum()
 
-    # ==========================================
-    # 🔹 COMPRAS BRUTAS
-    # ==========================================
-
-    compras_bruta = (
-        df[df["tipo_operacao"]=="Entrada"]
-        .groupby("mes")["valor"]
-        .sum()
-    )
-
-    # ==========================================
-    # 🔹 DEVOLUÇÃO DE COMPRA
-    # ==========================================
-
-    devolucao_compra = (
-        df[
-            (df["tipo_operacao"]=="Entrada") &
-            (df["cfop"].isin(cfop_devolucao_compra))
-        ]
-        .groupby("mes")["valor"]
-        .sum()
-    )
+    devolucao_venda = df_dev_venda.groupby("mes")["valor"].sum()
+    devolucao_compra = df_dev_compra.groupby("mes")["valor"].sum()
 
     # ==========================================
     # 🔹 MONTAGEM DA MATRIZ DRE
@@ -571,10 +692,8 @@ with aba4:
         "Devolução Compra": devolucao_compra
     }).fillna(0)
 
-    dre = dre.sort_index()
-
     # ==========================================
-    # 🔹 AJUSTES LÍQUIDOS
+    # 🔹 AJUSTES LÍQUIDOS (igual ao Dashboard)
     # ==========================================
 
     dre["Receita Líquida"] = (
@@ -591,12 +710,11 @@ with aba4:
 
     dre["Margem %"] = (
         dre["Resultado Bruto"] /
-        dre["Receita Líquida"].replace(0,1)
+        dre["Receita Líquida"].replace(0, 1)
     ) * 100
 
     dre = dre.reset_index()
     dre["mes"] = dre["mes"].astype(str)
-
     # ==========================================
     # 🔹 FORMATAÇÃO LOCAL DA DRE
     # ==========================================
@@ -633,7 +751,7 @@ with aba4:
 
     receita_cliente = (
         df[df["tipo_operacao"] == "Saída"]
-        .groupby("razao_social")["valor"]
+        .groupby("razao_destinatario")["valor"]
         .sum()
         .sort_values(ascending=False)
         .reset_index()
@@ -648,7 +766,7 @@ with aba4:
         )
 
         total_row = pd.DataFrame({
-            "razao_social": ["TOTAL"],
+            "razao_destinatario": ["TOTAL"],
             "valor": [receita_cliente["valor"].sum()],
             "% Participação": [receita_cliente["% Participação"].sum()]
         })
