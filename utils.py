@@ -36,6 +36,13 @@ def extrair_dados_xml(file):
         cnpj = cnpj.text if cnpj is not None else "N/A"
         razao = razao.text if razao is not None else "N/A"
 
+        # 🧾 Destinatário
+        cnpj_dest = root.find('.//nfe:dest/nfe:CNPJ', ns)
+        razao_dest = root.find('.//nfe:dest/nfe:xNome', ns)
+
+        cnpj_dest = cnpj_dest.text if cnpj_dest is not None else "N/A"
+        razao_dest = razao_dest.text if razao_dest is not None else "N/A"
+
         # Impostos
         def pegar_valor(tag):
             campo = root.find(f'.//nfe:{tag}', ns)
@@ -64,6 +71,8 @@ def extrair_dados_xml(file):
             "cfop": cfop,
             "cnpj": cnpj,
             "razao_social": razao,
+            "cnpj_destinatario": cnpj_dest,
+            "razao_destinatario": razao_dest,
             "vencimentos": datas_venc,
             "impostos": impostos
         }
