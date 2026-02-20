@@ -4,6 +4,52 @@ import plotly.express as px
 from io import BytesIO
 from utils import extrair_dados_xml, calcular_defasagem_meses
 
+# =====================================================
+# 🔒 GARANTIAS
+# =====================================================
+def validar_resultado_xml(resultado):
+    """
+    Valida o dicionário retornado por extrair_dados_xml.
+    Se faltar qualquer campo essencial, retorna False.
+    """
+
+    campos_obrigatorios = [
+        "chave",
+        "emissao",
+        "vencimentos",
+        "valor",
+        "cfop",
+        "cnpj",
+        "razao_social",
+        "cnpj_destinatario",
+        "razao_destinatario",
+        "impostos"
+    ]
+
+    # Se resultado for None ou vazio → inválido
+    if not resultado or not isinstance(resultado, dict):
+        return False
+
+    # Verificar campos obrigatórios
+    for campo in campos_obrigatorios:
+        if campo not in resultado:
+            return False
+        if resultado[campo] in [None, "", [], {}]:
+            return False
+
+    # Valor precisa ser numérico e > 0
+    try:
+        if float(resultado["valor"]) <= 0:
+            return False
+    except:
+        return False
+
+    # Vencimentos precisa ser lista válida
+    if not isinstance(resultado["vencimentos"], list):
+        return False
+
+    return True
+
 def exportar_excel(df, nome_arquivo="relatorio.xlsx"):
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -102,6 +148,7 @@ def converter_cfop(cfop_original, tipo_desejado):
 
     return cfop_original
 
+
 df = st.session_state.df_base
 
 if uploaded_files:
@@ -111,67 +158,67 @@ if uploaded_files:
     for file in uploaded_files:
         resultado = extrair_dados_xml(file)
 
-        if resultado and resultado["chave"] not in st.session_state.chaves:
+        # 🔒 VALIDAR XML ANTES DE QUALQUER PROCESSAMENTO
+        if not validar_resultado_xml(resultado):
+            st.warning(f"XML ignorado por estar incompleto ou inválido: {file.name}")
+            continue
 
-            st.session_state.chaves.add(resultado["chave"])
+        # 🔒 Impedir duplicação
+        if resultado["chave"] in st.session_state.chaves:
+            continue
 
-            for venc in resultado["vencimentos"]:
+        st.session_state.chaves.add(resultado["chave"])
 
-                defasagem = calcular_defasagem_meses(
-                    resultado["emissao"],
-                    venc
-                )
+        # 🔄 PARA CADA VENCIMENTO
+        for venc in resultado["vencimentos"]:
 
-                cfop_original = str(resultado["cfop"]).strip()
+            defasagem = calcular_defasagem_meses(
+                resultado["emissao"],
+                venc
+            )
 
-                # Aplicar conversão conforme seleção do usuário
-                if tipo_manual == "Entrada":
-                    cfop_final = converter_cfop(cfop_original, "Entrada")
-                else:
-                    # Automático → mantém CFOP original
-                    cfop_final = cfop_original
+            cfop_original = str(resultado["cfop"]).strip()
 
-                # ================================
-                # 🔄 DEFINIÇÃO DO TIPO OPERAÇÃO
-                # ================================
+            # ================================
+            # 🔄 DEFINIÇÃO DO TIPO OPERAÇÃO
+            # ================================
+            if tipo_manual == "Entrada":
+                tipo_operacao = "Entrada"
+                cfop_final = converter_cfop(cfop_original, "Entrada")
 
-                if tipo_manual == "Entrada":
+            elif tipo_manual == "Saída":
+                tipo_operacao = "Saída"
+                cfop_final = converter_cfop(cfop_original, "Saída")
+
+            else:
+                # modo automático pelo CFOP original
+                if cfop_original.startswith(("1", "2", "3")):
                     tipo_operacao = "Entrada"
-                    cfop_final = converter_cfop(cfop_original, "Entrada")
-
-                elif tipo_manual == "Saída":
-                    tipo_operacao = "Saída"
-                    cfop_final = converter_cfop(cfop_original, "Saída")
-
                 else:
-                    # modo automático pelo CFOP original
-                    if cfop_original.startswith(("1", "2", "3")):
-                        tipo_operacao = "Entrada"
-                    else:
-                        tipo_operacao = "Saída"
+                    tipo_operacao = "Saída"
 
-                    cfop_final = cfop_original
+                cfop_final = cfop_original
 
-                # ================================
-                # 🔎 CLASSIFICAÇÃO DA NATUREZA
-                # ================================
+            # ================================
+            # 🔎 CLASSIFICAÇÃO DA NATUREZA
+            # ================================
+            novos.append({
+                "tipo_operacao": tipo_operacao,
+                "chave": resultado["chave"],
+                "emissao": resultado["emissao"],
+                "vencimento": venc,
+                "valor": resultado["valor"] / len(resultado["vencimentos"]),
+                "frete": resultado.get("frete", 0.0) / len(resultado["vencimentos"]),
+                "cfop": cfop_final,
+                "cnpj": resultado["cnpj"],
+                "razao_social": resultado["razao_social"],
+                "cnpj_destinatario": resultado["cnpj_destinatario"],
+                "razao_destinatario": resultado["razao_destinatario"],
+                "defasagem": defasagem,
+                **resultado["impostos"]
+            })
 
-                novos.append({
-                    "tipo_operacao": tipo_operacao,
-                    "chave": resultado["chave"],
-                    "emissao": resultado["emissao"],
-                    "vencimento": venc,
-                    "valor": resultado["valor"] / len(resultado["vencimentos"]),
-                    "frete": resultado.get("frete", 0.0) / len(resultado["vencimentos"]),
-                    "cfop": cfop_final,
-                    "cnpj": resultado["cnpj"],
-                    "razao_social": resultado["razao_social"],
-                    "cnpj_destinatario": resultado["cnpj_destinatario"],
-                    "razao_destinatario": resultado["razao_destinatario"],
-                    "defasagem": defasagem,
-                    **resultado["impostos"]
-                })
-
+    # 🔄 ADICIONAR AO DATAFRAME FINAL
     if novos:
         df_novo = pd.DataFrame(novos)
         st.session_state.df_base = pd.concat(
@@ -183,6 +230,7 @@ if uploaded_files:
 if df.empty:
     st.info("Importe XML para iniciar.")
     st.stop()
+
 
 # =====================================================
 # 🔐 GARANTIA DE TIPOS
@@ -353,7 +401,52 @@ with aba1:
         .reset_index()
     )
 
-    st.dataframe(formatar_moeda(resumo), use_container_width=True)
+    # ================================
+    # 📄 PAGINAÇÃO (200 por página)
+    # ================================
+
+    linhas_por_pagina = 200
+    total_linhas = len(resumo)
+    total_paginas = (total_linhas // linhas_por_pagina) + (1 if total_linhas % linhas_por_pagina else 0)
+
+    # Criar estado da página
+    if "pagina_bloco_c" not in st.session_state:
+        st.session_state.pagina_bloco_c = 1
+
+    # Botões de navegação
+    col1, col2, col3, col4, col5 = st.columns([1,1,4,1,1])
+
+    with col1:
+        if st.button("⬅️ Anterior"):
+            st.session_state.pagina_bloco_c -= 1
+
+    with col5:
+        if st.button("Próxima ➡️"):
+            st.session_state.pagina_bloco_c += 1
+
+    # 🔒 CLAMP — impede valores inválidos
+    st.session_state.pagina_bloco_c = max(1, min(st.session_state.pagina_bloco_c, total_paginas))
+
+    # Exibir números de página estilo Google
+    with col3:
+        st.write(
+            " | ".join(
+                [
+                    f"**{i}**" if i == st.session_state.pagina_bloco_c else str(i)
+                    for i in range(1, total_paginas + 1)
+                ]
+            )
+        )
+
+    pagina = st.session_state.pagina_bloco_c
+
+    inicio = (pagina - 1) * linhas_por_pagina
+    fim = inicio + linhas_por_pagina
+
+    resumo_paginado = resumo.iloc[inicio:fim]
+
+    st.subheader(f"Bloco C — Página {pagina} de {total_paginas}")
+    st.dataframe(formatar_moeda(resumo_paginado), use_container_width=True)
 
     # 📥 Botão Exportar Excel - Bloco C
     excel_file = exportar_excel(resumo, "bloco_c.xlsx")
@@ -373,61 +466,113 @@ with aba2:
 
     st.subheader("📊 Apuração Fiscal - Crédito x Débito")
 
-    impostos_lista = ["ICMS","ST","IPI","PIS","COFINS"]
-
-    # =====================================================
-    # 📌 SEPARAÇÃO CRÉDITO (Entrada) E DÉBITO (Saída)
-    # =====================================================
-
-    df_credito = df[df["tipo_operacao"]=="Entrada"]
-    df_debito = df[df["tipo_operacao"]=="Saída"]
-
-    credito = df_credito[impostos_lista].sum().to_frame(name="Crédito")
-    debito = df_debito[impostos_lista].sum().to_frame(name="Débito")
-
-    apuracao = pd.concat([credito, debito], axis=1).fillna(0)
-
-    # =====================================================
-    # 📌 RESULTADO (Exceto ST)
-    # =====================================================
-
-    apuracao["Resultado (Débito - Crédito)"] = (
-        apuracao["Débito"] - apuracao["Crédito"]
+    # ================================
+    # 🔄 Seleção do Regime Tributário
+    # ================================
+    regime = st.radio(
+        "Selecione o regime tributário",
+        ["Lucro Presumido", "Lucro Real"],
+        horizontal=True
     )
+
+    # ================================
+    # 📌 Separação Crédito e Débito (ICMS, ST, IPI)
+    # ================================
+    impostos_xml = ["ICMS", "ST", "IPI"]
+
+    df_credito = df[df["tipo_operacao"] == "Entrada"]
+    df_debito = df[df["tipo_operacao"] == "Saída"]
+    
+    if df_debito.empty:
+        st.info("Nenhuma operação de SAÍDA encontrada. Exibindo apenas dados de ENTRADA.")
+
+    credito_xml = df_credito[impostos_xml].sum().to_frame(name="Crédito")
+    debito_xml = df_debito[impostos_xml].sum().to_frame(name="Débito")
+
+    # ================================
+    # 📌 Bases de cálculo
+    # ================================
+    total_vendas = df_debito["valor"].sum() if not df_debito.empty else 0
+    total_compras = df_credito["valor"].sum()
+
+    # ================================
+    # 📌 Cálculo dos impostos calculados
+    # ================================
+    if regime == "Lucro Presumido":
+
+        # Débito (vendas)
+        pis_debito = total_vendas * 0.0065
+        cofins_debito = total_vendas * 0.03
+        csll_debito = total_vendas * 0.12 * 0.09
+
+        base_irpj = total_vendas * 0.08
+        irpj_debito = base_irpj * 0.15 + max(base_irpj - 20000, 0) * 0.10
+
+        # Crédito (compras)
+        pis_credito = total_compras * 0.0065
+        cofins_credito = total_compras * 0.03
+
+    else:  # Lucro Real
+
+        # Crédito (compras)
+        pis_credito = total_compras * 0.0165
+        cofins_credito = total_compras * 0.076
+
+        # Débito (vendas)
+        pis_debito = total_vendas * 0.0165
+        cofins_debito = total_vendas * 0.076
+
+        # Base real para IRPJ e CSLL
+        base_real = max(total_vendas - total_compras, 0)
+
+        csll_debito = base_real * 0.09
+        irpj_debito = base_real * 0.15 + max(base_real - 20000, 0) * 0.10
+
+    # 🔒 GARANTIR QUE O SISTEMA FUNCIONE SEM SAÍDAS
+    if total_vendas == 0:
+        pis_debito = 0
+        cofins_debito = 0
+        csll_debito = 0
+        irpj_debito = 0
+
+    # ================================
+    # 📌 Montar tabela dos impostos calculados
+    # ================================
+    calculados = pd.DataFrame({
+        "Imposto": ["PIS", "COFINS", "CSLL", "IRPJ"],
+        "Crédito": [pis_credito, cofins_credito, 0, 0],
+        "Débito": [pis_debito, cofins_debito, csll_debito, irpj_debito]
+    })
+
+    # ================================
+    # 📌 Montar tabela final (XML + calculados)
+    # ================================
+    apuracao_xml = credito_xml.join(debito_xml).reset_index().rename(columns={"index": "Imposto"})
+
+    apuracao = pd.concat([apuracao_xml, calculados], ignore_index=True)
+
+    # Resultado
+    apuracao["Resultado (Débito - Crédito)"] = apuracao["Débito"] - apuracao["Crédito"]
 
     # ST não entra no resultado
-    if "ST" in apuracao.index:
-        apuracao.loc["ST", "Resultado (Débito - Crédito)"] = None
+    apuracao.loc[apuracao["Imposto"] == "ST", "Resultado (Débito - Crédito)"] = None
 
-    apuracao_exibicao = (
-        apuracao
-        .reset_index()
-        .rename(columns={"index": "Imposto"})
-    )
+    st.dataframe(formatar_apuracao(apuracao), use_container_width=True)
 
-    st.dataframe(
-        formatar_apuracao(apuracao_exibicao),
-        use_container_width=True
-    )
-
-    # =====================================================
-    # 📊 VISUAL GRÁFICO DÉBITO x CRÉDITO
-    # =====================================================
-
+    # ================================
+    # 📊 Gráfico
+    # ================================
     st.divider()
     st.subheader("Comparativo Débito x Crédito")
 
-    grafico_df = apuracao.reset_index().rename(columns={"index":"Imposto"})
-
     fig_apuracao = px.bar(
-        grafico_df,
+        apuracao,
         x="Imposto",
-        y=["Débito","Crédito"],
+        y=["Débito", "Crédito"],
         barmode="group"
     )
 
     st.plotly_chart(fig_apuracao, use_container_width=True)
-
 
 # =====================================================
 # 📅 FINANCEIRO + SIMULADOR
@@ -436,32 +581,22 @@ with aba2:
 with aba3:
 
     # =====================================================
-    # 📅 MATRIZ DETALHADA DO FLUXO REAL
+    # 📅 MATRIZ DETALHADA DO FLUXO REAL (AGRUPADA POR MÊS)
     # =====================================================
 
+    df["mes_emissao"] = df["emissao"].dt.to_period("M")
     df["mes_venc"] = df["vencimento"].dt.to_period("M")
 
-    # cálculo de dias entre emissão e vencimento
-    df["dias_emissao_venc"] = (
-        df["vencimento"] - df["emissao"]
-    ).dt.days
+    fluxo_real = (
+        df.groupby(["mes_emissao", "mes_venc", "tipo_operacao"])["valor"]
+        .sum()
+        .reset_index()
+    )
 
-    # formatação padrão dd/mm/aaaa
-    df["emissao_formatada"] = df["emissao"].dt.strftime("%d/%m/%Y")
-    df["vencimento_formatado"] = df["vencimento"].dt.strftime("%d/%m/%Y")
-
-    fluxo_real = df[[
-        "emissao_formatada",
-        "vencimento_formatado",
-        "dias_emissao_venc",
-        "mes_venc",
-        "tipo_operacao",
-        "valor"
-    ]].copy()
-
+    fluxo_real["mes_emissao"] = fluxo_real["mes_emissao"].astype(str)
     fluxo_real["mes_venc"] = fluxo_real["mes_venc"].astype(str)
 
-    st.subheader("Fluxo Real Detalhado")
+    st.subheader("Fluxo Real Detalhado (Agrupado por Mês)")
     st.dataframe(formatar_moeda(fluxo_real), use_container_width=True)
 
     # =====================================================
@@ -469,7 +604,7 @@ with aba3:
     # =====================================================
 
     financeiro = (
-        df.groupby(["mes_venc","tipo_operacao"])["valor"]
+        df.groupby(["mes_venc", "tipo_operacao"])["valor"]
         .sum()
         .reset_index()
     )
@@ -548,29 +683,27 @@ with aba3:
     st.divider()
     st.subheader("🔮 Simulador de Pagamentos Futuros (Fornecedores)")
 
-    df_pagamentos = df[df["tipo_operacao"]=="Entrada"]
+    df_pagamentos = df[df["tipo_operacao"] == "Entrada"]
 
     dist_pag = (
-    df_pagamentos.groupby("defasagem")["valor"]
-    .sum()
-    .reset_index()
+        df_pagamentos.groupby("defasagem")["valor"]
+        .sum()
+        .reset_index()
     )
 
     total_pag = dist_pag["valor"].sum()
 
-    if total_pag > 0:
-
-        dist_pag["percentual"] = dist_pag["valor"] / total_pag
-
-        valor_pagar = st.number_input(
+    # Campo de valor SEMPRE aparece
+    valor_pagar = st.number_input(
         "Valor de Compras para Projetar",
         value=0.0,
         step=10000.0
     )
 
-    # usa o MESMO mes_base do simulador de receita
-    # pois já foi definido acima
-    if valor_pagar > 0:
+    # Só roda a simulação se houver dados E valor > 0
+    if total_pag > 0 and valor_pagar > 0:
+
+        dist_pag["percentual"] = dist_pag["valor"] / total_pag
 
         proj_pag = []
 
