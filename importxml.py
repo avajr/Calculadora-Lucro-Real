@@ -77,17 +77,14 @@ def formatar_moeda(df):
 
         col_str = str(col)
 
-        # 🔹 Se for coluna explicitamente monetária
         if col in colunas_monetarias:
-            format_dict[col] = "R$ {:,.2f}"
+            format_dict[col] = lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-        # 🔹 Se for coluna percentual
         elif "Participação" in col_str or "Margem" in col_str:
-            format_dict[col] = "{:,.2f}%"
+            format_dict[col] = lambda x: f"{x:,.2f}%".replace(",", "X").replace(".", ",").replace("X", ".")
 
-        # 🔹 Se for coluna mensal numérica (pivot)
         elif isinstance(col, pd.Period):
-            format_dict[col] = "R$ {:,.2f}"
+            format_dict[col] = lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
     return df.style.format(format_dict)
 
@@ -99,7 +96,7 @@ def formatar_apuracao(df):
 
     for col in df.columns:
         if col in colunas_moeda:
-            format_dict[col] = "R$ {:,.2f}"
+            format_dict[col] = lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
     return df.style.format(format_dict)
 
@@ -123,22 +120,26 @@ tipo_manual = st.radio(
     horizontal=True
 )
 
+st.markdown("### 📥 Importação de Arquivos")
+
+st.info("""
+Você pode importar:
+- **XML individuais**
+- **Vários XML de uma vez**
+- **Arquivos ZIP contendo milhares de XML**
+""")
+
 uploaded_files = st.file_uploader(
-    "Importar XML modelo 55",
-    type=["xml"],
+    "Selecione XML ou ZIP",
+    type=["xml", "zip"],
     accept_multiple_files=True
 )
 
 def converter_cfop(cfop_original, tipo_desejado):
-    """
-    Converte CFOP de saída (5,6,7) para entrada (1,2,3)
-    apenas trocando o primeiro dígito.
-    """
     if not cfop_original:
         return cfop_original
 
     cfop_original = str(cfop_original).strip()
-
     mapa_entrada = {"5": "1", "6": "2", "7": "3"}
 
     primeiro = cfop_original[0]
@@ -154,8 +155,32 @@ df = st.session_state.df_base
 if uploaded_files:
 
     novos = []
+    arquivos_xml = []
+
+    # =====================================================
+    # 📦 SUPORTE A ZIP — extrair XML de dentro do ZIP
+    # =====================================================
+    import zipfile
 
     for file in uploaded_files:
+        if file.name.lower().endswith(".zip"):
+            try:
+                with zipfile.ZipFile(file) as z:
+                    for nome in z.namelist():
+                        if nome.lower().endswith(".xml"):
+                            buffer = BytesIO(z.read(nome))
+                            buffer.name = nome  # 🔥 CORREÇÃO AQUI
+                            arquivos_xml.append(buffer)
+            except:
+                st.error(f"Erro ao ler ZIP: {file.name}")
+        else:
+            arquivos_xml.append(file)
+
+    # Agora arquivos_xml contém:
+    # ✔ XML enviados individualmente
+    # ✔ XML extraídos de ZIP
+
+    for file in arquivos_xml:
         resultado = extrair_dados_xml(file)
 
         # 🔒 VALIDAR XML ANTES DE QUALQUER PROCESSAMENTO
@@ -362,13 +387,15 @@ frete_cif = df_vendas_normais["frete"].sum()
 
 col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 
-col1.metric("Total Vendas (Bruto)", f"R$ {total_vendas:,.2f}")
-col2.metric("Total Compras (Bruto)", f"R$ {total_compras:,.2f}")
-col3.metric("Devoluções Venda", f"R$ {total_dev_venda:,.2f}")
-col4.metric("Devoluções Compra", f"R$ {total_dev_compra:,.2f}")
-col5.metric("Frete CIF (Saídas)", f"R$ {frete_cif:,.2f}")
-col6.metric("Frete FOB (Entradas)", f"R$ {frete_fob:,.2f}")
-col7.metric("Resultado Líquido", f"R$ {resultado_liquido:,.2f}")
+fmt = lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+col1.metric("Total Vendas (Bruto)", fmt(total_vendas))
+col2.metric("Total Compras (Bruto)", fmt(total_compras))
+col3.metric("Devoluções Venda", fmt(total_dev_venda))
+col4.metric("Devoluções Compra", fmt(total_dev_compra))
+col5.metric("Frete CIF (Saídas)", fmt(frete_cif))
+col6.metric("Frete FOB (Entradas)", fmt(frete_fob))
+col7.metric("Resultado Líquido", fmt(resultado_liquido))
 
 # =====================================================
 # 🧠 ABAS
@@ -864,17 +891,20 @@ with aba4:
 
     format_dict_dre = {}
 
+    fmt_moeda = lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    fmt_percent = lambda x: f"{x:,.2f}%".replace(",", "X").replace(".", ",").replace("X", ".")
+
     for col in dre.columns:
         if col in colunas_moeda_dre:
-            format_dict_dre[col] = "R$ {:,.2f}"
+            format_dict_dre[col] = fmt_moeda
         elif "Margem" in col:
-            format_dict_dre[col] = "{:,.2f}%"
+            format_dict_dre[col] = fmt_percent
 
     st.dataframe(
         dre.style.format(format_dict_dre),
         use_container_width=True
     )
-
+    
     # =====================================================
     # 🏢 AGREGAÇÃO POR CLIENTE (XML SAÍDA)
     # =====================================================
