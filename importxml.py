@@ -58,7 +58,7 @@ def exportar_excel(df, nome_arquivo="relatorio.xlsx"):
     return output
 
 st.set_page_config(layout="wide")
-st.title("📊 Projetor Fiscal & Financeiro via SPED")
+st.title("📊 Projetor Fiscal & Financeiro")
 
 # =====================================================
 # 🛠 FUNÇÃO GLOBAL DE FORMATAÇÃO MONETÁRIA
@@ -271,6 +271,7 @@ df["vencimento"] = pd.to_datetime(df["vencimento"], errors="coerce")
 df["defasagem"] = pd.to_numeric(df["defasagem"], errors="coerce").fillna(0)
 
 st.success(f"{df['chave'].nunique()} notas carregadas")
+st.rerun()
 
 # =====================================================
 # 📈 DASHBOARD EXECUTIVO
@@ -992,3 +993,4 @@ with aba4:
             receita_fornecedor.style.format(format_dict_fornecedor),
             use_container_width=True
         )
+
