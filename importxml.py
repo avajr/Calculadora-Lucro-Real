@@ -57,8 +57,15 @@ def exportar_excel(df, nome_arquivo="relatorio.xlsx"):
     output.seek(0)
     return output
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="📊 Projetor Fiscal & Financeiro", layout="wide")
 st.title("📊 Projetor Fiscal & Financeiro")
+
+st.set_page_config(
+    page_title="🏦 Projeção Fiscal & Financeiro",
+    page_icon="🏛️",   # ícone
+    layout="wide"
+)
+
 
 # =====================================================
 # 🛠 FUNÇÃO GLOBAL DE FORMATAÇÃO MONETÁRIA
@@ -992,5 +999,6 @@ with aba4:
             receita_fornecedor.style.format(format_dict_fornecedor),
             use_container_width=True
         )
+
 
 
