@@ -12,6 +12,12 @@ from reportlab.lib.styles import getSampleStyleSheet
 st.set_page_config(page_title="📈 Simulador de Lucro Real/Presumido", layout="wide")
 st.title("📈 Simulador de Lucro Real / Presumido")
 
+st.set_page_config(
+    page_title="📈 Simulador",
+    page_icon="📊",   # ícone
+    layout="wide"
+)
+
 # ============================
 # Funções de formatação
 # ============================
@@ -304,3 +310,4 @@ if st.button("Calcular"):
         mime="application/pdf"
 
     )
+
