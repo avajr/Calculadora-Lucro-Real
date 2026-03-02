@@ -289,7 +289,7 @@ st.subheader("📈 Dashboard Executivo")
 # 🔧 Garantir CFOP como string
 df["cfop"] = df["cfop"].astype(str).str.strip()
 
-# ➤ Listas CFOP de compra
+# ➤ Listas CFOP devolução compra
 cfop_devolucao_compra = [
     "5201","5202","5203","5204","5205","5206","5207","5208","5209",
     "5410","5411",
@@ -300,7 +300,7 @@ cfop_devolucao_compra = [
     "6556"
 ]
 
-# ➤ Listas CFOP de venda
+# ➤ Listas CFOP devolução venda
 cfop_devolucao_venda = [
     "1201","1202","1203","1204","1205","1206","1207","1208","1209",
     "1410","1411",
@@ -315,6 +315,8 @@ cfop_outros = [
     "5910","6910",
     "5911","6911",
     "5912","6912",
+    "5913","6913",
+    "5914","6914",
 
     # Remessas (não geram receita)
     "5901","6901",
@@ -326,6 +328,25 @@ cfop_outros = [
     "5907","6907",
     "5908","6908",
     "5909","6909",
+    "5915","6915",
+    "5916","6916",
+    "5917","6917",
+    "5918","6918",
+    "5919","6919",
+    "5920","6920",
+    "5921","6921",
+    "5922","6922",
+    "5923","6923",
+    "5924","6924",
+    "5925","6925",
+    "5926","6926",
+    "5927","6927",
+    "5928","6928",
+    "5929","6929",
+    "5930","6930",
+    "5931","6931",
+    "5932","6932",
+    "5933","6933",
 
     # Transferências
     "5152","6152",
@@ -999,6 +1020,7 @@ with aba4:
             receita_fornecedor.style.format(format_dict_fornecedor),
             use_container_width=True
         )
+
 
 
 
