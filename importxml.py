@@ -116,6 +116,58 @@ if "df_base" not in st.session_state:
     st.session_state.chaves = set()
 
 # =====================================================
+# 🔹 AJUSTE DE CFOP
+# =====================================================
+
+# ➤ Listas CFOP outros
+cfop_outros = [
+    # Bonificação / Doação / Brindes
+    "5910","6910",
+    "5911","6911",
+    "5912","6912",
+    "5913","6913",
+    "5914","6914",
+
+    # Remessas (não geram receita)
+    "5901","6901",
+    "5902","6902",
+    "5903","6903",
+    "5904","6904",
+    "5905","6905",
+    "5906","6906",
+    "5907","6907",
+    "5908","6908",
+    "5909","6909",
+    "5915","6915",
+    "5916","6916",
+    "5917","6917",
+    "5918","6918",
+    "5919","6919",
+    "5920","6920",
+    "5921","6921",
+    "5922","6922",
+    "5923","6923",
+    "5924","6924",
+    "5925","6925",
+    "5926","6926",
+    "5927","6927",
+    "5928","6928",
+    "5929","6929",
+    "5930","6930",
+    "5931","6931",
+    "5932","6932",
+    "5933","6933",
+
+    # Transferências
+    "5152","6152",
+    "5153","6153",
+
+    # Outras saídas sem receita
+    "5949","6949"
+]
+
+
+# =====================================================
 # 📥 IMPORTAÇÃO XML + CLASSIFICAÇÃO MANUAL
 # =====================================================
 
@@ -224,12 +276,18 @@ if uploaded_files:
 
             else:
                 # modo automático pelo CFOP original
-                if cfop_original.startswith(("1", "2", "3")):
+                if cfop_original in cfop_outros:
+                    # CFOPs especiais → categoria "Outros"
+                    tipo_operacao = "Outros"
+                    cfop_final = cfop_original  # não converte
+
+                elif cfop_original.startswith(("1", "2", "3")):
                     tipo_operacao = "Entrada"
+                    cfop_final = converter_cfop(cfop_original, "Entrada")
+
                 else:
                     tipo_operacao = "Saída"
-
-                cfop_final = cfop_original
+                    cfop_final = converter_cfop(cfop_original, "Saída")
 
             # ================================
             # 🔎 CLASSIFICAÇÃO DA NATUREZA
@@ -310,51 +368,6 @@ cfop_devolucao_venda = [
     "2503","2504","2505","2506","2556"
 ]
 
-cfop_outros = [
-    # Bonificação / Doação / Brindes
-    "5910","6910",
-    "5911","6911",
-    "5912","6912",
-    "5913","6913",
-    "5914","6914",
-
-    # Remessas (não geram receita)
-    "5901","6901",
-    "5902","6902",
-    "5903","6903",
-    "5904","6904",
-    "5905","6905",
-    "5906","6906",
-    "5907","6907",
-    "5908","6908",
-    "5909","6909",
-    "5915","6915",
-    "5916","6916",
-    "5917","6917",
-    "5918","6918",
-    "5919","6919",
-    "5920","6920",
-    "5921","6921",
-    "5922","6922",
-    "5923","6923",
-    "5924","6924",
-    "5925","6925",
-    "5926","6926",
-    "5927","6927",
-    "5928","6928",
-    "5929","6929",
-    "5930","6930",
-    "5931","6931",
-    "5932","6932",
-    "5933","6933",
-
-    # Transferências
-    "5152","6152",
-    "5153","6153",
-
-    # Outras saídas sem receita
-    "5949","6949"
-]
 
 # =====================================================
 # 🔹 CLASSIFICAÇÃO
@@ -364,16 +377,14 @@ cfop_outros = [
 df_vendas_normais = df[
     (df["tipo_operacao"] == "Saída") &
     (~df["cfop"].isin(cfop_devolucao_venda)) &
-    (~df["cfop"].isin(cfop_devolucao_compra)) &
-    (~df["cfop"].isin(cfop_outros))
+    (~df["cfop"].isin(cfop_devolucao_compra))
 ]
 
 # Compras normais (Entrada que NÃO é devolução)
 df_compras_normais = df[
     (df["tipo_operacao"] == "Entrada") &
     (~df["cfop"].isin(cfop_devolucao_venda)) &
-    (~df["cfop"].isin(cfop_devolucao_compra)) &
-    (~df["cfop"].isin(cfop_outros))
+    (~df["cfop"].isin(cfop_devolucao_compra))
 ]
 
 # Devolução de venda (Entrada)
@@ -535,9 +546,9 @@ with aba2:
     # ================================
     impostos_xml = ["ICMS", "ST", "IPI"]
 
-    df_credito = df[df["tipo_operacao"] == "Entrada"]
-    df_debito = df[df["tipo_operacao"] == "Saída"]
-    
+    df_credito = df[df["tipo_operacao"].isin(["Entrada","Outros"])]
+    df_debito = df[df["tipo_operacao"].isin(["Saída","Outros"])]
+   
     if df_debito.empty:
         st.info("Nenhuma operação de SAÍDA encontrada. Exibindo apenas dados de ENTRADA.")
 
@@ -816,47 +827,30 @@ with aba4:
     "6556"
     ]
 
-    # ==========================================
-    # 🔹 CLASSIFICAÇÃO (igual ao Dashboard Executivo)
-    # ==========================================
-
-    # CFOP que não representam venda real
-    cfop_outros = [
-        "5910","6910","5911","6911","5912","6912",
-        "5901","6901","5902","6902","5903","6903","5904","6904",
-        "5905","6905","5906","6906","5907","6907","5908","6908","5909","6909",
-        "5152","6152","5153","6153",
-        "5949","6949"
-    ]
-
-    # Vendas normais (Saída que NÃO é devolução e NÃO é CFOP “sujeira”)
+    # Vendas normais (Saída que NÃO é devolução)
     df_vendas_normais = df[
         (df["tipo_operacao"] == "Saída") &
         (~df["cfop"].isin(cfop_devolucao_venda)) &
-        (~df["cfop"].isin(cfop_devolucao_compra)) &
-        (~df["cfop"].isin(cfop_outros))
+        (~df["cfop"].isin(cfop_devolucao_compra))
     ]
 
-    # Compras normais (Entrada que NÃO é devolução e NÃO é CFOP “sujeira”)
+    # Compras normais (Entrada que NÃO é devolução)
     df_compras_normais = df[
         (df["tipo_operacao"] == "Entrada") &
         (~df["cfop"].isin(cfop_devolucao_venda)) &
-        (~df["cfop"].isin(cfop_devolucao_compra)) &
-        (~df["cfop"].isin(cfop_outros))
+        (~df["cfop"].isin(cfop_devolucao_compra))
     ]
 
     # Devolução de venda (Entrada)
     df_dev_venda = df[
         (df["tipo_operacao"] == "Entrada") &
-        (df["cfop"].isin(cfop_devolucao_venda)) &
-        (~df["cfop"].isin(cfop_outros))
+        (df["cfop"].isin(cfop_devolucao_venda))
     ]
 
     # Devolução de compra (Saída)
     df_dev_compra = df[
         (df["tipo_operacao"] == "Saída") &
-        (df["cfop"].isin(cfop_devolucao_compra)) &
-        (~df["cfop"].isin(cfop_outros))
+        (df["cfop"].isin(cfop_devolucao_compra))
     ]
 
     # ==========================================
@@ -1020,7 +1014,5 @@ with aba4:
             receita_fornecedor.style.format(format_dict_fornecedor),
             use_container_width=True
         )
-
-
 
 
