@@ -235,15 +235,18 @@ def converter_cfop(cfop_original, tipo_desejado):
         return cfop_original
 
     cfop_original = str(cfop_original).strip()
-    mapa_entrada = {"5": "1", "6": "2", "7": "3"}
 
+    # Se for CFOP de "Outros", não converte
+    if cfop_original in cfop_outros:
+        return cfop_original
+
+    mapa_entrada = {"5": "1", "6": "2", "7": "3"}
     primeiro = cfop_original[0]
 
     if tipo_desejado == "Entrada" and primeiro in mapa_entrada:
         return mapa_entrada[primeiro] + cfop_original[1:]
 
     return cfop_original
-
 
 df = st.session_state.df_base
 
