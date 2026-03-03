@@ -418,7 +418,7 @@ resultado_liquido = total_vendas - total_compras
 
 # Fretes
 frete_fob = df_compras_normais["frete"].sum()
-frete_cif = df_vendas_normais["frete"].sum()
+frete_cif = df[df["tipo_operacao"].isin(["Saída","Outros"])]["frete"].sum()
 
 # =====================================================
 # 🔹 EXIBIÇÃO
@@ -813,7 +813,7 @@ with aba4:
     "1503","1504","1505","1506",
     "2201","2202","2203","2204","2205","2206","2207","2208","2209",
     "2410","2411",
-    "2503","2504","2505","2506"
+    "2503","2504","2505","2506","2556"
     ]
 
     # ➤ Listas CFOP de compra
