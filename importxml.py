@@ -711,7 +711,7 @@ with aba3:
     st.dataframe(formatar_moeda(fluxo_real), use_container_width=True)
 
     # =====================================================
-    # 📊 GRÁFICO MENSAL (mantém visão resumida)
+    # 📊 GRÁFICO MENSAL (Entrada, Saída e Despesa Fixa)
     # =====================================================
 
     financeiro = (
@@ -721,6 +721,22 @@ with aba3:
     )
 
     financeiro["mes_venc"] = financeiro["mes_venc"].astype(str)
+
+    # Campo para despesas fixas
+    valor_despesa_fixa = st.number_input(
+        "Valor de Despesas Fixas Mensais",
+        value=0.0,
+        step=10000.0
+    )
+
+    if valor_despesa_fixa > 0:
+        meses_existentes = financeiro["mes_venc"].unique()
+        despesas_fixas = pd.DataFrame({
+            "mes_venc": meses_existentes,
+            "tipo_operacao": ["Despesa Fixa"] * len(meses_existentes),
+            "valor": [valor_despesa_fixa] * len(meses_existentes)
+        })
+        financeiro = pd.concat([financeiro, despesas_fixas], ignore_index=True)
 
     fig_fluxo = px.bar(
         financeiro,
