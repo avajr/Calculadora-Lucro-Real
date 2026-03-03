@@ -588,8 +588,8 @@ with aba2:
     # ================================
     impostos_xml = ["ICMS", "ST", "IPI"]
 
-    df_credito = df[df["tipo_operacao"].isin(["Entrada","Outros"])]
-    df_debito = df[df["tipo_operacao"].isin(["Saída","Outros"])]
+    df_credito = df[df["tipo_operacao"] == "Entrada"]
+    df_debito = df[df["tipo_operacao"] == "Saída"]
    
     if df_debito.empty:
         st.info("Nenhuma operação de SAÍDA encontrada. Exibindo apenas dados de ENTRADA.")
