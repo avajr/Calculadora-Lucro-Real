@@ -306,24 +306,29 @@ if uploaded_files:
             # 🔄 DEFINIÇÃO DO TIPO OPERAÇÃO
             # ================================
             if tipo_manual == "Entrada":
-                tipo_operacao = "Entrada"
-                cfop_final = converter_cfop(cfop_original, "Entrada")
+                if cfop_original in cfop_outros:
+                    tipo_operacao = "Outros"
+                    cfop_final = cfop_original  # não converte
+                else:
+                    tipo_operacao = "Entrada"
+                    cfop_final = converter_cfop(cfop_original, "Entrada")
 
             elif tipo_manual == "Saída":
-                tipo_operacao = "Saída"
-                cfop_final = converter_cfop(cfop_original, "Saída")
+                if cfop_original in cfop_outros:
+                    tipo_operacao = "Outros"
+                    cfop_final = cfop_original  # não converte
+                else:
+                    tipo_operacao = "Saída"
+                    cfop_final = converter_cfop(cfop_original, "Saída")
 
             else:
                 # modo automático pelo CFOP original
                 if cfop_original in cfop_outros:
-                    # CFOPs especiais → categoria "Outros"
                     tipo_operacao = "Outros"
                     cfop_final = cfop_original  # não converte
-
-                elif cfop_original.startswith(("1", "2", "3")):
+                elif cfop_original.startswith(("1","2","3")):
                     tipo_operacao = "Entrada"
                     cfop_final = converter_cfop(cfop_original, "Entrada")
-
                 else:
                     tipo_operacao = "Saída"
                     cfop_final = converter_cfop(cfop_original, "Saída")
@@ -355,11 +360,9 @@ if uploaded_files:
             ignore_index=True
         )
 
-
 if df.empty:
     st.info("Importe XML para iniciar.")
     st.stop()
-
 
 # =====================================================
 # 🔐 GARANTIA DE TIPOS
