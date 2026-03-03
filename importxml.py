@@ -951,6 +951,11 @@ with aba4:
         dre["Receita Líquida"] - dre["Compras Líquida"]
     )
 
+    dre["Markup"] = (
+        dre["Receita Líquida"] /
+        dre["Compras Líquida"].replace(0, 1)
+    ).round(2)  # duas casas decimais
+
     dre["Margem %"] = (
         dre["Resultado Bruto"] /
         dre["Receita Líquida"].replace(0, 1)
@@ -976,12 +981,15 @@ with aba4:
 
     fmt_moeda = lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     fmt_percent = lambda x: f"{x:,.2f}%".replace(",", "X").replace(".", ",").replace("X", ".")
+    fmt_markup = lambda x: f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
     for col in dre.columns:
         if col in colunas_moeda_dre:
             format_dict_dre[col] = fmt_moeda
         elif "Margem" in col:
             format_dict_dre[col] = fmt_percent
+        elif "Markup" in col:
+            format_dict_dre[col] = fmt_markup
 
     st.dataframe(
         dre.style.format(format_dict_dre),
