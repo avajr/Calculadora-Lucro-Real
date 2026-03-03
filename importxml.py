@@ -688,15 +688,18 @@ with aba2:
 
 with aba3:
 
+    # Excluir operações "Outros" do financeiro
+    df_financeiro = df[df["tipo_operacao"].isin(["Entrada","Saída"])]
+
     # =====================================================
     # 📅 MATRIZ DETALHADA DO FLUXO REAL (AGRUPADA POR MÊS)
     # =====================================================
 
-    df["mes_emissao"] = df["emissao"].dt.to_period("M")
-    df["mes_venc"] = df["vencimento"].dt.to_period("M")
+    df_financeiro["mes_emissao"] = df_financeiro["emissao"].dt.to_period("M")
+    df_financeiro["mes_venc"] = df_financeiro["vencimento"].dt.to_period("M")
 
     fluxo_real = (
-        df.groupby(["mes_emissao", "mes_venc", "tipo_operacao"])["valor"]
+        df_financeiro.groupby(["mes_emissao", "mes_venc", "tipo_operacao"])["valor"]
         .sum()
         .reset_index()
     )
@@ -712,7 +715,7 @@ with aba3:
     # =====================================================
 
     financeiro = (
-        df.groupby(["mes_venc", "tipo_operacao"])["valor"]
+        df_financeiro.groupby(["mes_venc", "tipo_operacao"])["valor"]
         .sum()
         .reset_index()
     )
