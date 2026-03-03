@@ -711,7 +711,7 @@ with aba3:
     st.dataframe(formatar_moeda(fluxo_real), use_container_width=True)
 
     # =====================================================
-    # 📊 GRÁFICO MENSAL (Entrada, Saída e Despesa Fixa)
+    # 📊 GRÁFICO MENSAL (Entrada + Despesa Fixa empilhados)
     # =====================================================
 
     financeiro = (
@@ -743,7 +743,7 @@ with aba3:
         x="mes_venc",
         y="valor",
         color="tipo_operacao",
-        barmode="group"
+        barmode="stack"  # empilha Entrada + Despesa Fixa
     )
 
     st.plotly_chart(fig_fluxo, use_container_width=True)
